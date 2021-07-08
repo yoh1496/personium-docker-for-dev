@@ -2,7 +2,7 @@ version: "3.7"
 services:
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:6.8.12
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.13.2-arm64
     ports:
       - 9200:9200
       - 9300:9300
@@ -25,7 +25,7 @@ services:
       retries: 10
 
   activemq:
-    image: rmohr/activemq:5.15.9
+    image: symptoma/activemq:5.16.2-multiarch
     ports:
       - 61616:61616
       - 8161:8161
@@ -37,10 +37,8 @@ services:
       timeout: 30s
       retries: 10
 
-  personium:
-    build: personium
-    ports:
-      - 8080:8080
+  personium-core:
+    build: ./tomcat-wait-for-elasticsearch
     networks:
       - frontend
       - mq
@@ -53,6 +51,34 @@ services:
       interval: 30s
       timeout: 30s
       retries: 10
+    environment:
+      - JAVA_OPTS=-Dio.personium.configurationFile=/personium/personium-core/conf/personium-unit-config.properties
+    volumes:
+      - personium_nfs:/personium_nfs
+      - type: bind
+        source: ../personium-core/target/personium-core.war
+        target: /usr/local/tomcat/webapps/personium-core.war
+      - type: bind
+        source: ./personium-core/personium-unit-config.properties
+        target: /personium/personium-core/conf/personium-unit-config.properties
+      - type: bind
+        source: ./personium-core/x509/unit-self-sign.crt
+        target: /opt/x509/unit-self-sign.crt
+      - type: bind
+        source: ./personium-core/x509/unit.key
+        target: /opt/x509/unit.key
+
+  personium-engine:
+    build: ./tomcat-wait-for-elasticsearch
+    environment:
+      - JAVA_OPTS=-Dio.personium.configurationFile=/personium/personium-engine/conf/personium-unit-config.properties
+    volumes:
+      - personium_nfs:/personium_nfs
+      - type: bind
+        source: ../personium-engine/target/personium-engine.war
+        target: /usr/local/tomcat/webapps/personium-engine.war
+    networks:
+      - backend
 
   nginx:
     build: nginx
@@ -62,10 +88,19 @@ services:
     networks:
       - frontend
     depends_on:
-      - personium
+      - personium-core
+    volumes:
+      - type: bind
+        source: ./nginx/server.crt
+        target: /etc/nginx/server.crt
+      - type: bind
+        source: ./nginx/server.key
+        target: /etc/nginx/server.key
 
 volumes:
   esdata:
+    driver: local
+  personium_nfs:
     driver: local
 
 networks:

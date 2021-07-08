@@ -1,9 +1,20 @@
 server {
-    listen       80;
-    server_name  personium;
+    listen 80;
+    server_name *.${SERVER_NAME};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen       443;
+    server_name  *.${SERVER_NAME};
 
     #charset koi8-r;
     #access_log  /var/log/nginx/host.access.log  main;
+
+    ssl on;
+    ssl_certificate       /etc/nginx/server.crt;
+    ssl_certificate_key   /etc/nginx/server.key;
+    ssl_protocols         TLSv1.2;
 
     location / {
             if ($request_uri ~ [\x00-\x20\x22\x3c\x3e\x5b-\x5e\x60\x7b-\x7d\x7f]) {
@@ -18,11 +29,11 @@ server {
               rewrite .* /personium-core$request_uri break;
             }
 
-            proxy_pass http://personium:8080;
+            proxy_pass http://personium-core:8080/;
             proxy_set_header X-Forwarded-For $remote_addr;
-            proxy_set_header X-Forwarded-Proto http;
+            proxy_set_header X-Forwarded-Proto https;
             proxy_set_header X-Forwarded-Path $request_uri;
-            proxy_set_header Host $http_host;
+            proxy_set_header Host $host;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection $connection_upgrade;
             proxy_hide_header X-Powered-By;

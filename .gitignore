@@ -1,1 +1,7 @@
 unitadmin_account
+
+personium-core/x509/
+.env
+
+nginx/server.crt
+nginx/server.key
